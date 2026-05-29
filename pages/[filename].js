@@ -19,10 +19,17 @@ export async function getServerSideProps({ params, res }) {
     };
   }
 
-  res.writeHead(302, {
-    Location: file.url,
-  });
+  const response = await fetch(file.url);
 
+  const contentType =
+    response.headers.get("content-type") || "application/octet-stream";
+
+  const buffer = Buffer.from(await response.arrayBuffer());
+
+  res.setHeader("Content-Type", contentType);
+  res.setHeader("Cache-Control", "public, max-age=31536000");
+
+  res.write(buffer);
   res.end();
 
   return {
