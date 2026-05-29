@@ -1,117 +1,59 @@
-# UploadX — Permanent Media Uploader
+# FileUp — Simple File Uploader
 
-Website uploader media permanen berbasis Vercel Blob Storage. Gratis, no expiry.
+Upload semua jenis file, tanpa login, tanpa expiry.
 
-## 📁 Struktur Project
+## Stack
+- Next.js 14
+- Vercel Blob (penyimpanan permanen)
+- Busboy (multipart parser)
 
-```
-media-uploader/
-├── api/
-│   ├── upload.js     → POST /api/upload
-│   ├── files.js      → GET /api/files
-│   └── delete.js     → DELETE /api/delete?url=...
-├── public/
-│   └── index.html    → UI website
-├── vercel.json
-├── package.json
-└── README.md
-```
-
-## 🚀 Cara Deploy ke Vercel (Gratis)
+## Deploy ke Vercel
 
 ### 1. Push ke GitHub
-Upload semua file ini ke repositori GitHub kamu.
-
-### 2. Import ke Vercel
-- Buka [vercel.com](https://vercel.com) → Login
-- Klik **New Project** → Import repo GitHub kamu
-- Klik **Deploy**
-
-### 3. Tambah Vercel Blob Storage
-- Di Vercel Dashboard → tab **Storage**
-- Klik **Create** → pilih **Blob**
-- Pilih plan **Hobby (Gratis, limit 5GB)**
-- Klik **Connect** ke project kamu
-- Ini otomatis menambahkan env variable `BLOB_READ_WRITE_TOKEN`
-
-### 4. (Opsional) Set API Key
-Di Vercel → Project Settings → Environment Variables:
-```
-UPLOAD_API_KEY = rahasia-kamu-123
-```
-Jika tidak di-set, upload bebas tanpa auth.
-
-### 5. Selesai!
-Website kamu live di: `https://nama-project.vercel.app`
-
----
-
-## 🤖 Integrasi Bot WhatsApp
-
-```js
-const { downloadMediaMessage } = require('@whiskeysockets/baileys');
-const FormData = require('form-data');
-const fetch = require('node-fetch');
-
-const BASE_URL = 'https://nama-project.vercel.app';
-
-async function uploadMedia(sock, msg) {
-  const buffer = await downloadMediaMessage(msg, 'buffer', {});
-  const mime = msg.message?.imageMessage?.mimetype || 'image/jpeg';
-  const ext = mime.split('/')[1];
-
-  const form = new FormData();
-  form.append('file', buffer, { filename: `media.${ext}`, contentType: mime });
-
-  const res = await fetch(`${BASE_URL}/api/upload`, {
-    method: 'POST',
-    body: form,
-    headers: form.getHeaders(),
-  });
-
-  const data = await res.json();
-  return data.url; // Link permanen!
-}
-
-// Contoh penggunaan di handler pesan:
-sock.ev.on('messages.upsert', async ({ messages }) => {
-  const msg = messages[0];
-  if (msg.message?.imageMessage) {
-    const url = await uploadMedia(sock, msg);
-    await sock.sendMessage(msg.key.remoteJid, { text: `✅ Upload berhasil!\n${url}` });
-  }
-});
+```bash
+git init
+git add .
+git commit -m "init"
+git remote add origin https://github.com/USERNAME/fileup.git
+git push -u origin main
 ```
 
----
+### 2. Buat Blob Store di Vercel
+1. Buka [vercel.com](https://vercel.com) → Dashboard
+2. Buat project baru, import repo GitHub kamu
+3. Setelah deploy, buka tab **Storage**
+4. Klik **Create** → pilih **Blob**
+5. Beri nama (misal: `fileup-storage`)
+6. Klik **Connect to Project** → pilih project kamu
 
-## 📡 API Reference
+Vercel otomatis menambahkan env `BLOB_READ_WRITE_TOKEN` ke project.
 
-### POST /api/upload
-Upload file (multipart/form-data)
+### 3. Redeploy
+Setelah blob terhubung, klik **Redeploy** di dashboard Vercel.
 
-**Request:**
+Selesai! Website kamu siap di:
 ```
+https://nama-project.vercel.app
+```
+
+## API
+
+```
+POST /api/upload
 Content-Type: multipart/form-data
-x-api-key: (opsional)
 
-file: <binary>
+field: file
 ```
 
-**Response:**
+Response:
 ```json
-{
-  "success": true,
-  "url": "https://blob.vercel-storage.com/xxx.jpg",
-  "filename": "photo.jpg",
-  "size": 204800,
-  "type": "image/jpeg",
-  "uploadedAt": "2024-01-01T12:00:00.000Z"
-}
+{ "status": true, "url": "https://..." }
 ```
 
-### GET /api/files
-List semua file.
+## Lokal
 
-### DELETE /api/delete?url=...
-Hapus file berdasarkan URL.
+```bash
+npm install
+# Tambahkan BLOB_READ_WRITE_TOKEN ke .env.local
+npm run dev
+```
