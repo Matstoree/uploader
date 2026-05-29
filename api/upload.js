@@ -20,7 +20,7 @@ export default async function handler(req, res) {
 
   // Optional API key check — set UPLOAD_API_KEY in Vercel env vars to enable
   const apiKey = process.env.UPLOAD_API_KEY;
-  if (apiKey && req.headers['x-api-key'] !== vercel_blob_rw_ZMgNAvvlzqaNmR8l_CQCLXLaXg1HBHAfFkYebU3nynLA1ma) {
+  if (apiKey && req.headers['x-api-key'] !== apiKey) {
     return res.status(401).json({ error: 'Invalid API key' });
   }
 
