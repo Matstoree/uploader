@@ -1,137 +1,165 @@
+"use client"
+import { useState, useRef, useCallback, DragEvent } from "react"
 import Link from "next/link"
-import styles from "./docs.module.css"
+import { formatBytes } from "@/lib/utils"
+import styles from "./page.module.css"
 
-export const metadata = { title: "API Docs — FileDrop" }
+type State = "idle" | "dragging" | "uploading" | "done" | "error"
 
-export default function Docs() {
+export default function Home() {
+  const [state, setState] = useState<State>("idle")
+  const [file, setFile] = useState<File | null>(null)
+  const [progress, setProgress] = useState(0)
+  const [resultUrl, setResultUrl] = useState("")
+  const [error, setError] = useState("")
+  const [copied, setCopied] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const reset = () => {
+    setState("idle")
+    setFile(null)
+    setProgress(0)
+    setResultUrl("")
+    setError("")
+    setCopied(false)
+  }
+
+  const upload = useCallback(async (f: File) => {
+    setFile(f)
+    setState("uploading")
+    setProgress(0)
+
+    const form = new FormData()
+    form.append("file", f)
+
+    try {
+      // Simulate progress with XHR for better UX
+      const result = await new Promise<{ status: boolean; url: string; error?: string }>((resolve, reject) => {
+        const xhr = new XMLHttpRequest()
+        xhr.open("POST", "/api/upload")
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 90))
+        }
+        xhr.onload = () => {
+          setProgress(100)
+          try { resolve(JSON.parse(xhr.responseText)) }
+          catch { reject(new Error("Invalid response")) }
+        }
+        xhr.onerror = () => reject(new Error("Network error"))
+        xhr.send(form)
+      })
+
+      if (result.status && result.url) {
+        setResultUrl(result.url)
+        setState("done")
+      } else {
+        throw new Error(result.error || "Upload failed")
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed")
+      setState("error")
+    }
+  }, [])
+
+  const onDrop = (e: DragEvent) => {
+    e.preventDefault()
+    setState("idle")
+    const f = e.dataTransfer.files[0]
+    if (f) upload(f)
+  }
+
+  const copy = async () => {
+    await navigator.clipboard.writeText(resultUrl)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   return (
     <main className={styles.main}>
       <nav className={styles.nav}>
-        <Link href="/" className={styles.back}>← FileDrop</Link>
-        <span className={styles.badge}>API v1</span>
+        <span className={styles.logo}>FileDrop<span className={styles.dot}>.</span></span>
+        <Link href="/docs" className={styles.navLink}>API Docs</Link>
       </nav>
 
-      <h1 className={styles.title}>API Documentation</h1>
-      <p className={styles.sub}>Simple file upload API. No auth required.</p>
+      <div className={styles.hero}>
+        <h1 className={styles.title}>
+          Drop it.<br />Share it.
+        </h1>
+        <p className={styles.sub}>No login. No limits. Instant URL.</p>
+      </div>
 
-      <section className={styles.section}>
-        <h2 className={styles.h2}>POST /api/upload</h2>
-        <p className={styles.p}>Upload any file using <code>multipart/form-data</code>.</p>
-
-        <div className={styles.table}>
-          <div className={styles.row}>
-            <span className={styles.key}>Method</span>
-            <code className={styles.val}>POST</code>
+      {state === "idle" || state === "dragging" ? (
+        <div
+          className={`${styles.dropzone} ${state === "dragging" ? styles.dragging : ""}`}
+          onDragOver={(e) => { e.preventDefault(); setState("dragging") }}
+          onDragLeave={() => setState("idle")}
+          onDrop={onDrop}
+          onClick={() => inputRef.current?.click()}
+        >
+          <input
+            ref={inputRef}
+            type="file"
+            className={styles.hidden}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f) }}
+          />
+          <div className={styles.dropIcon}>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
           </div>
-          <div className={styles.row}>
-            <span className={styles.key}>Endpoint</span>
-            <code className={styles.val}>/api/upload</code>
-          </div>
-          <div className={styles.row}>
-            <span className={styles.key}>Content-Type</span>
-            <code className={styles.val}>multipart/form-data</code>
-          </div>
-          <div className={styles.row}>
-            <span className={styles.key}>Field</span>
-            <code className={styles.val}>file</code>
-          </div>
-          <div className={styles.row}>
-            <span className={styles.key}>Auth</span>
-            <code className={styles.val}>None</code>
-          </div>
+          <p className={styles.dropText}>
+            {state === "dragging" ? "Release to upload" : "Drag & drop or click to select"}
+          </p>
+          <p className={styles.dropHint}>Any file type · Any size</p>
         </div>
-      </section>
+      ) : state === "uploading" ? (
+        <div className={styles.card}>
+          <div className={styles.fileInfo}>
+            <span className={styles.fileName}>{file?.name}</span>
+            <span className={styles.fileSize}>{file ? formatBytes(file.size) : ""}</span>
+          </div>
+          <div className={styles.progressBar}>
+            <div className={styles.progressFill} style={{ width: `${progress}%` }} />
+          </div>
+          <p className={styles.progressLabel}>{progress}%</p>
+        </div>
+      ) : state === "done" ? (
+        <div className={styles.card}>
+          <div className={styles.successIcon}>✓</div>
+          <p className={styles.successLabel}>Upload complete</p>
+          <p className={styles.fileName2}>{file?.name}</p>
+          <div className={styles.urlRow}>
+            <span className={styles.url}>{resultUrl}</span>
+            <button className={styles.copyBtn} onClick={copy}>
+              {copied ? "✓ Copied" : "Copy"}
+            </button>
+          </div>
+          <a className={styles.openLink} href={resultUrl} target="_blank" rel="noreferrer">Open file ↗</a>
+          <button className={styles.resetBtn} onClick={reset}>Upload another</button>
+        </div>
+      ) : (
+        <div className={styles.card}>
+          <div className={styles.errorIcon}>✕</div>
+          <p className={styles.errorLabel}>{error}</p>
+          <button className={styles.resetBtn} onClick={reset}>Try again</button>
+        </div>
+      )}
 
-      <section className={styles.section}>
-        <h2 className={styles.h2}>Response</h2>
-        <pre className={styles.code}>{`{
-  "status": true,
-  "url": "https://domain.vercel.app/file/abc123.jpg"
-}`}</pre>
-        <pre className={styles.code}>{`// Error
-{
-  "status": false,
-  "error": "No file provided"
-}`}</pre>
-      </section>
-
-      <section className={styles.section}>
-        <h2 className={styles.h2}>Examples</h2>
-
-        <h3 className={styles.h3}>cURL</h3>
-        <pre className={styles.code}>{`curl -X POST https://domain.vercel.app/api/upload \\
-  -F "file=@/path/to/file.jpg"`}</pre>
-
-        <h3 className={styles.h3}>Node.js (axios)</h3>
-        <pre className={styles.code}>{`const axios = require("axios");
-const FormData = require("form-data");
-const fs = require("fs");
-
-async function upload(filePath) {
-  const form = new FormData();
-  form.append("file", fs.createReadStream(filePath));
-
-  const { data } = await axios.post(
-    "https://domain.vercel.app/api/upload",
-    form,
-    { headers: form.getHeaders() }
-  );
-
-  return data.url;
-}
-
-// Upload from buffer
-async function uploadBuffer(buffer, filename) {
-  const form = new FormData();
-  form.append("file", buffer, filename);
-
-  const { data } = await axios.post(
-    "https://domain.vercel.app/api/upload",
-    form,
-    { headers: form.getHeaders() }
-  );
-
-  return data.url;
-}`}</pre>
-
-        <h3 className={styles.h3}>Python (requests)</h3>
-        <pre className={styles.code}>{`import requests
-
-def upload(file_path):
-    with open(file_path, "rb") as f:
-        res = requests.post(
-            "https://domain.vercel.app/api/upload",
-            files={"file": f}
-        )
-    return res.json()["url"]`}</pre>
-
-        <h3 className={styles.h3}>Browser (fetch)</h3>
-        <pre className={styles.code}>{`async function upload(file) {
-  const form = new FormData();
-  form.append("file", file);
-
-  const res = await fetch("/api/upload", {
-    method: "POST",
-    body: form,
-  });
-
-  const data = await res.json();
-  return data.url;
-}`}</pre>
-      </section>
-
-      <section className={styles.section}>
-        <h2 className={styles.h2}>File URL Format</h2>
-        <p className={styles.p}>
-          After upload, files are accessible via a short URL:
-        </p>
-        <pre className={styles.code}>{`https://domain.vercel.app/file/{id}.{ext}
-
-# Examples:
-https://domain.vercel.app/file/abc123.jpg
-https://domain.vercel.app/file/x7k2m9.mp4
-https://domain.vercel.app/file/q9w3e1.pdf`}</pre>
-      </section>
+      <div className={styles.features}>
+        {[
+          ["∞", "Permanent storage"],
+          ["⚡", "Instant URL"],
+          ["🔓", "No login needed"],
+          ["📦", "All file types"],
+        ].map(([icon, label]) => (
+          <div key={label} className={styles.feature}>
+            <span className={styles.featureIcon}>{icon}</span>
+            <span>{label}</span>
+          </div>
+        ))}
+      </div>
     </main>
   )
 }
