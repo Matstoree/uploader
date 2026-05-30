@@ -1,59 +1,110 @@
-# FileUp — Simple File Uploader
+# FileDrop — File Uploader
 
-Upload semua jenis file, tanpa login, tanpa expiry.
+Upload any file, get a short permanent URL. No login required.
 
-## Stack
-- Next.js 14
-- Vercel Blob (penyimpanan permanen)
-- Busboy (multipart parser)
+## Features
 
-## Deploy ke Vercel
+- Upload any file type (image, video, audio, PDF, ZIP, etc.)
+- No login / no auth
+- Short URL: `/file/{id}.{ext}`
+- Permanent storage via Vercel Blob
+- REST API
 
-### 1. Push ke GitHub
+## Routes
+
+| Route | Description |
+|---|---|
+| `/` | Upload page |
+| `/file/[id]` | Serve / redirect to file |
+| `/docs` | API documentation |
+| `POST /api/upload` | Upload endpoint |
+
+---
+
+## Deploy to Vercel (3 steps)
+
+### 1. Push to GitHub
+
 ```bash
 git init
 git add .
 git commit -m "init"
-git remote add origin https://github.com/USERNAME/fileup.git
-git push -u origin main
+gh repo create fileuploader --public --push
 ```
 
-### 2. Buat Blob Store di Vercel
-1. Buka [vercel.com](https://vercel.com) → Dashboard
-2. Buat project baru, import repo GitHub kamu
-3. Setelah deploy, buka tab **Storage**
-4. Klik **Create** → pilih **Blob**
-5. Beri nama (misal: `fileup-storage`)
-6. Klik **Connect to Project** → pilih project kamu
+### 2. Deploy to Vercel
 
-Vercel otomatis menambahkan env `BLOB_READ_WRITE_TOKEN` ke project.
-
-### 3. Redeploy
-Setelah blob terhubung, klik **Redeploy** di dashboard Vercel.
-
-Selesai! Website kamu siap di:
-```
-https://nama-project.vercel.app
+```bash
+npm i -g vercel
+vercel --prod
 ```
 
-## API
+Or connect your GitHub repo at https://vercel.com/new
 
-```
-POST /api/upload
-Content-Type: multipart/form-data
+### 3. Enable Vercel Blob Storage
 
-field: file
-```
+In your Vercel project dashboard:
 
-Response:
-```json
-{ "status": true, "url": "https://..." }
-```
+1. Go to **Storage** tab
+2. Click **Create Database** → select **Blob**
+3. Name it (e.g., `files`) and click **Create**
+4. Click **Connect to Project** and select your project
+5. This auto-sets the `BLOB_READ_WRITE_TOKEN` env variable
 
-## Lokal
+**That's it!** Your uploader is live. ✓
+
+---
+
+## Local Development
 
 ```bash
 npm install
-# Tambahkan BLOB_READ_WRITE_TOKEN ke .env.local
+vercel env pull .env.local   # pulls BLOB_READ_WRITE_TOKEN
 npm run dev
 ```
+
+## API Usage
+
+### POST /api/upload
+
+```bash
+curl -X POST https://your-domain.vercel.app/api/upload \
+  -F "file=@photo.jpg"
+```
+
+**Response:**
+```json
+{
+  "status": true,
+  "url": "https://your-domain.vercel.app/file/abc123.jpg"
+}
+```
+
+### Node.js
+
+```js
+const axios = require("axios");
+const FormData = require("form-data");
+
+async function upload(buffer, filename) {
+  const form = new FormData();
+  form.append("file", buffer, filename);
+
+  const { data } = await axios.post(
+    "https://your-domain.vercel.app/api/upload",
+    form,
+    { headers: form.getHeaders() }
+  );
+
+  return data.url;
+}
+```
+
+---
+
+## Notes on Storage
+
+- Files are stored permanently in **Vercel Blob** (no expiry)
+- Vercel Blob free tier: 1 GB storage, 10 GB bandwidth/month
+- For larger scale, upgrade to Vercel Pro or use a custom blob store
+- The `/file/[id]` route redirects to the Vercel Blob CDN URL
