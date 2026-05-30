@@ -1,8 +1,10 @@
 import { put } from "@vercel/blob"
-import { kv } from "@vercel/kv"
+import { Redis } from "@upstash/redis"
 import { nanoid } from "nanoid"
 import { NextRequest, NextResponse } from "next/server"
 import { getBaseUrl } from "@/lib/utils"
+
+const redis = Redis.fromEnv()
 
 export const runtime = "nodejs"
 export const maxDuration = 60
@@ -26,8 +28,7 @@ export async function POST(req: NextRequest) {
       addRandomSuffix: false,
     })
 
-    // Simpan mapping: id.ext → blob url
-    await kv.set(`file:${id}.${ext}`, blob.url)
+    await redis.set(`file:${id}.${ext}`, blob.url)
 
     const base = getBaseUrl(req)
     const url = `${base}/file/${id}.${ext}`
