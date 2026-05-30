@@ -17,15 +17,17 @@ export async function POST(req: NextRequest) {
 
     const ext = file.name.includes(".") ? file.name.split(".").pop()!.toLowerCase() : "bin"
     const id = nanoid(8)
-    const blobName = `${id}.${ext}`
+    const pathname = `files/${id}.${ext}`
 
-    const blob = await put(blobName, file, {
+    const blob = await put(pathname, file, {
       access: "public",
       contentType: file.type || "application/octet-stream",
+      addRandomSuffix: false,
     })
 
     const base = getBaseUrl(req)
-    const url = `${base}/file/${blobName}`
+    const encoded = Buffer.from(blob.url).toString("base64url")
+    const url = `${base}/file/${encoded}`
 
     return NextResponse.json({ status: true, url, blob_url: blob.url })
   } catch (err: unknown) {
