@@ -1,9 +1,10 @@
 import { put } from "@vercel/blob"
+import { kv } from "@vercel/kv"
 import { nanoid } from "nanoid"
 import { NextRequest, NextResponse } from "next/server"
 import { getBaseUrl } from "@/lib/utils"
 
-export const runtime = "edge"
+export const runtime = "nodejs"
 export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest) {
     }
 
     const ext = file.name.includes(".") ? file.name.split(".").pop()!.toLowerCase() : "bin"
-    const id = nanoid(8)
+    const id = nanoid(6)
     const pathname = `files/${id}.${ext}`
 
     const blob = await put(pathname, file, {
@@ -25,9 +26,11 @@ export async function POST(req: NextRequest) {
       addRandomSuffix: false,
     })
 
+    // Simpan mapping: id.ext → blob url
+    await kv.set(`file:${id}.${ext}`, blob.url)
+
     const base = getBaseUrl(req)
-    const encoded = Buffer.from(blob.url).toString("base64url")
-    const url = `${base}/file/${encoded}`
+    const url = `${base}/file/${id}.${ext}`
 
     return NextResponse.json({ status: true, url, blob_url: blob.url })
   } catch (err: unknown) {
