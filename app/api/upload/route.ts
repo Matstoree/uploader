@@ -1,24 +1,35 @@
-import { list } from "@vercel/blob"
+import { put } from "@vercel/blob"
+import { nanoid } from "nanoid"
 import { NextRequest, NextResponse } from "next/server"
+import { getBaseUrl } from "@/lib/utils"
 
 export const runtime = "edge"
+export const maxDuration = 60
 
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  const { id } = params
-
+export async function POST(req: NextRequest) {
   try {
-    const { blobs } = await list({ prefix: id })
-    const blob = blobs.find((b) => b.pathname === id)
+    const form = await req.formData()
+    const file = form.get("file") as File | null
 
-    if (!blob) {
-      return new NextResponse("File not found", { status: 404 })
+    if (!file || file.size === 0) {
+      return NextResponse.json({ status: false, error: "No file provided" }, { status: 400 })
     }
 
-    return NextResponse.redirect(blob.url, { status: 302 })
-  } catch {
-    return new NextResponse("Error fetching file", { status: 500 })
+    const ext = file.name.includes(".") ? file.name.split(".").pop()!.toLowerCase() : "bin"
+    const id = nanoid(8)
+    const blobName = `${id}.${ext}`
+
+    const blob = await put(blobName, file, {
+      access: "public",
+      contentType: file.type || "application/octet-stream",
+    })
+
+    const base = getBaseUrl(req)
+    const url = `${base}/file/${blobName}`
+
+    return NextResponse.json({ status: true, url, blob_url: blob.url })
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Upload failed"
+    return NextResponse.json({ status: false, error: msg }, { status: 500 })
   }
 }
