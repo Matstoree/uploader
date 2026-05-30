@@ -1,5 +1,7 @@
-import { kv } from "@vercel/kv"
+import { Redis } from "@upstash/redis"
 import { NextRequest, NextResponse } from "next/server"
+
+const redis = Redis.fromEnv()
 
 export const runtime = "nodejs"
 
@@ -10,7 +12,7 @@ export async function GET(
   const { id } = params
 
   try {
-    const blobUrl = await kv.get<string>(`file:${id}`)
+    const blobUrl = await redis.get<string>(`file:${id}`)
     if (!blobUrl) return new NextResponse("File not found", { status: 404 })
     return NextResponse.redirect(blobUrl, { status: 302 })
   } catch {
