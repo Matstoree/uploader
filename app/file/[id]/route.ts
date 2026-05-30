@@ -1,4 +1,4 @@
-import { list } from "@vercel/blob"
+import { head } from "@vercel/blob"
 import { NextRequest, NextResponse } from "next/server"
 
 export const runtime = "edge"
@@ -11,14 +11,8 @@ export async function GET(
 
   try {
     const blob = await head(id)
-
-    if (!blob) {
-      return new NextResponse("File not found", { status: 404 })
-    }
-
     return NextResponse.redirect(blob.url, { status: 302 })
   } catch {
-    return new NextResponse("Error fetching file", { status: 500 })
+    return new NextResponse("File not found", { status: 404 })
   }
 }
-
