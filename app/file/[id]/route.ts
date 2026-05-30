@@ -1,6 +1,7 @@
+import { kv } from "@vercel/kv"
 import { NextRequest, NextResponse } from "next/server"
 
-export const runtime = "edge"
+export const runtime = "nodejs"
 
 export async function GET(
   _req: NextRequest,
@@ -9,14 +10,10 @@ export async function GET(
   const { id } = params
 
   try {
-    const blobUrl = Buffer.from(id, "base64url").toString("utf-8")
-
-    if (!blobUrl.startsWith("https://") || !blobUrl.includes("vercel-storage.com")) {
-      return new NextResponse("Invalid file ID", { status: 400 })
-    }
-
+    const blobUrl = await kv.get<string>(`file:${id}`)
+    if (!blobUrl) return new NextResponse("File not found", { status: 404 })
     return NextResponse.redirect(blobUrl, { status: 302 })
   } catch {
-    return new NextResponse("File not found", { status: 404 })
+    return new NextResponse("Error", { status: 500 })
   }
 }
