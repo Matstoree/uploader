@@ -10,8 +10,7 @@ export async function GET(
   const { id } = params
 
   try {
-    const { blobs } = await list({ prefix: id })
-    const blob = blobs.find((b) => b.pathname === id)
+    const blob = await head(id)
 
     if (!blob) {
       return new NextResponse("File not found", { status: 404 })
@@ -22,3 +21,4 @@ export async function GET(
     return new NextResponse("Error fetching file", { status: 500 })
   }
 }
+
