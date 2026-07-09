@@ -1,20 +1,22 @@
 import { Redis } from "@upstash/redis"
-import { NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 
 const redis = Redis.fromEnv()
 
 export const runtime = "nodejs"
 
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  const { id } = params
+type RouteParams = { params: { id: string } }
 
+export async function GET(_req: Request, { params }: RouteParams) {
   try {
-    const blobUrl = await redis.get<string>(`file:${id}`)
+    const blobUrl = await redis.get<string>(`file:${params.id}`)
     if (!blobUrl) return new NextResponse("File not found", { status: 404 })
-    return NextResponse.redirect(blobUrl, { status: 302 })
+
+    // 302 + no-store so a re-upload under the same id is never served stale.
+    return NextResponse.redirect(blobUrl, {
+      status: 302,
+      headers: { "Cache-Control": "no-store" },
+    })
   } catch {
     return new NextResponse("Error", { status: 500 })
   }
