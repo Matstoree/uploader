@@ -4,10 +4,16 @@ export function getBaseUrl(req?: Request): string {
     const proto = req.headers.get("x-forwarded-proto") || "https"
     return `${proto}://${host}`
   }
-  if (typeof window !== "undefined") return window.location.origin
   return process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL}`
     : "http://localhost:3000"
+}
+
+/** Extracts a safe, lowercase file extension (letters/digits only, max 8 chars). */
+export function sanitizeExt(filename: string): string {
+  const raw = filename.includes(".") ? filename.split(".").pop() ?? "" : ""
+  const clean = raw.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8)
+  return clean || "bin"
 }
 
 export function formatBytes(bytes: number): string {
