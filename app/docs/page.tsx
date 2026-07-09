@@ -62,37 +62,26 @@ export default function Docs() {
         <pre className={styles.code}>{`curl -X POST https://domain.vercel.app/api/upload \\
   -F "file=@/path/to/file.jpg"`}</pre>
 
-        <h3 className={styles.h3}>Node.js (axios)</h3>
-        <pre className={styles.code}>{`const axios = require("axios");
-const FormData = require("form-data");
-const fs = require("fs");
-
-async function upload(filePath) {
-  const form = new FormData();
-  form.append("file", fs.createReadStream(filePath));
-
-  const { data } = await axios.post(
-    "https://domain.vercel.app/api/upload",
-    form,
-    { headers: form.getHeaders() }
-  );
-
-  return data.url;
-}
-
-// Upload from buffer
+        <h3 className={styles.h3}>Node.js 18+ (no dependencies)</h3>
+        <pre className={styles.code}>{`// Works with a Buffer directly — handy for WhatsApp / Telegram bots
 async function uploadBuffer(buffer, filename) {
   const form = new FormData();
-  form.append("file", buffer, filename);
+  form.append("file", new Blob([buffer]), filename);
 
-  const { data } = await axios.post(
-    "https://domain.vercel.app/api/upload",
-    form,
-    { headers: form.getHeaders() }
-  );
+  const res = await fetch("https://domain.vercel.app/api/upload", {
+    method: "POST",
+    body: form,
+  });
 
+  const data = await res.json();
+  if (!data.status) throw new Error(data.error);
   return data.url;
 }`}</pre>
+        <p className={styles.p}>
+          Building a WhatsApp bot? See <code>examples/uploader.js</code> and{" "}
+          <code>examples/whatsapp-baileys.js</code> in the repo for a ready-to-paste
+          integration (Baileys: download media → upload → reply with the link).
+        </p>
 
         <h3 className={styles.h3}>Python (requests)</h3>
         <pre className={styles.code}>{`import requests
